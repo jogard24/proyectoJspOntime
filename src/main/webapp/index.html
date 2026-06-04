@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="css/login.css">
+        
+
+        <title>OnTime</title>
+    </head>
+
+    <body>
+
+        <div class="contenedor-login">
+
+            <section class="card-logo">
+
+                <img class="img-logo" src="img/logosinfondo.png">
+
+                <div class="selector-rol">
+
+                    <h3>Selecciona tu perfil</h3>
+
+                    <button class="btn-role bt-admin">
+                        Administrador
+                    </button>
+
+                    <button class="btn-role bt-contador">
+                        Contador
+                    </button>
+
+                </div>
+
+            </section>
+
+            <section class="card-login">
+
+                <form action="LoginServlet" method="post">
+
+                    <div class="input-login">
+                        <input class="labelModificador"
+                               type="text"
+                               name="usuario"
+                               placeholder=" "
+                               required>
+
+                        <label class="label-flotante">
+                            👷 Usuario
+                        </label>
+                    </div>
+
+                    <div class="input-login">
+                        <input class="labelModificador"
+                               type="password"
+                               name="password"
+                               placeholder=" "
+                               required>
+
+                        <label class="label-flotante">
+                            🔒 Contraseña
+                        </label>
+                    </div>
+
+                    <div class="bt-login">
+                        <button class="bt-empleado bt-menu-item"
+                                type="submit">
+                            INGRESAR
+                        </button>
+                    </div>
+
+                </form>
+
+            </section>
+
+        </div>
+
+    </body>
+</html>
