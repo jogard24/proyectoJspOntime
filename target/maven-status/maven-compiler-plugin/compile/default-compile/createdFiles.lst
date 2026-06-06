@@ -1,2 +1,4 @@
-com\mycompany\proyectoontime\resources\JakartaEE10Resource.class
-com\mycompany\proyectoontime\JakartaRestConfiguration.class
+CONTROLADOR\AsistenciaServlet.class
+DAO\AsistenciaDAO.class
+MODELO\Asistencia.class
+conexion\ConexionBD.class
