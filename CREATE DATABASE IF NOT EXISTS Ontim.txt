@@ -1,0 +1,202 @@
+CREATE DATABASE IF NOT EXISTS Ontime2BD;
+USE Ontime2BD;
+
+drop database ontime2bd;
+-- 1. Tabla Central de Usuarios
+CREATE TABLE usuario (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    documento_identidad VARCHAR(30) UNIQUE NOT NULL,
+    nombre VARCHAR(100) NOT NULL, 
+    direccion VARCHAR(100) NOT NULL,
+    estado enum ('activo', 'inactivo') not null,
+    tipo_sangre ENUM('a+','a-', 'b+', 'b-', 'o+','o-','ab+','ab-'),
+    fotoPerfil_url VARCHAR(255) NOT NULL,
+	fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_modificador_id INT, -- auditoria --
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_modificador_id) REFERENCES usuario(id));
+
+ALTER TABLE usuario ADD COLUMN fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+create table contacto_emergencia (
+id int auto_increment primary key,
+usuario_id int not null,
+nombre varchar (100) not null,
+telefono varchar (50) not null,
+parentesco varchar (50) not null,
+foreign key (usuario_id)references usuario(id));
+
+create table telefono_personal(
+id int auto_increment primary key,
+usuario_id int not null,
+telefono_celular varchar (50) not null,
+foreign key (usuario_id) references usuario(id));
+
+create table email_personal(
+id int auto_increment primary key,
+usuario_id int not null,
+email varchar (100) not null,
+foreign key (usuario_id) references usuario(id));
+
+
+select * from usuario;
+
+-- 2. Tabla de Roles
+CREATE TABLE roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    Rol ENUM('administrador','empleado','contador') UNIQUE NOT NULL
+);
+
+
+
+-- 3. Tabla de Credenciales (Se eliminó la restricción UNIQUE en rol_id para permitir varios contadores/empleados)
+CREATE TABLE credenciales (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT,
+    usuario VARCHAR(100) UNIQUE,
+    clave VARCHAR(50),
+    rol_id INT,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (rol_id) REFERENCES roles(id)
+);
+
+-- 4. Tabla de Jornadas Laborales (Debe ir ANTES de asistencia)
+CREATE TABLE jornadaLaboral(
+    id INT PRIMARY KEY,
+    nombrejornada VARCHAR(50) UNIQUE NOT NULL,
+    hora_entrada TIME, 
+    hora_salida TIME
+);
+
+--  Tabla de Asistencia
+CREATE TABLE asistencia (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT,
+    tipo_evento ENUM('entrada', 'salida'),
+    fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    observacion TEXT,
+    jornada_id INT NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (jornada_id) REFERENCES jornadaLaboral(id)
+);
+
+
+-- 6. Tabla de Contratos (Para cálculos de salarios de nómina)
+CREATE TABLE contrato (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    tipo_contrato VARCHAR(100) NOT NULL,
+    cargo VARCHAR(100) NOT NULL,
+    salario_base DECIMAL(10,2) NOT NULL,
+    jornada_id INT,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (jornada_id) REFERENCES jornadaLaboral(id)
+);
+
+CREATE TABLE permiso_laboral (
+id INT AUTO_INCREMENT PRIMARY KEY,
+permiso_id INT NOT NULL,
+tipo_permiso varchar (150) NOT NULL,
+fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+fecha_inicio date ,
+fecha_fin date ,
+estado BOOLEAN DEFAULT FALSE,
+foreign key (permiso_id) references roles(id));
+
+-- tiempo y eventos
+CREATE TABLE periodo_nomina (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL,
+    estado ENUM('abierto', 'cerrado') DEFAULT 'abierto'
+);
+    
+    
+-- Nómina (Conectando el tiempo con el periodo)
+CREATE TABLE nomina (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    periodo_id INT NOT NULL,
+    salario_base_periodo DECIMAL(10,2), -- Captura el salario al momento de pagar
+    total_horas_extras DECIMAL(5,2) DEFAULT 0,
+    total_neto DECIMAL(10,2),
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (periodo_id) REFERENCES periodo_nomina(id)
+);
+
+-- Tabla de conceptos (Define el extra o abono)
+CREATE TABLE concepto_nomina (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL, -- Ej: "Hora Extra Diurna", "Llegada Tarde", "Bono Puntualidad"
+    tipo ENUM('extra', 'descuento') NOT NULL,
+    factor_calculo DECIMAL(5,2) DEFAULT 1.0 -- Ejemplo: 1.25 para extras
+);
+
+-- Tabla de detalle (Aquí guardas los movimientos del periodo)
+CREATE TABLE detalle_nomina (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nomina_id INT NOT NULL, -- Conexión a la tabla que creamos antes
+    concepto_id INT NOT NULL,
+    valor DECIMAL(10,2) NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    observacion TEXT, -- Ej: "Llegada tarde el día 05/06/2026"
+    FOREIGN KEY (nomina_id) REFERENCES nomina(id),
+    FOREIGN KEY (concepto_id) REFERENCES concepto_nomina(id)
+);
+
+
+-- ==========================================================================
+-- INSERT PRUEBA 
+-- ==========================================================================
+INSERT INTO roles (Rol) VALUES ('administrador');
+INSERT INTO roles (Rol) VALUES ('empleado');
+INSERT INTO roles (Rol) VALUES ('contador');
+
+
+
+INSERT INTO jornadaLaboral (id, nombrejornada, hora_entrada, hora_salida)
+VALUES (101, 'Mañana Completa', '08:00:00', '17:00:00'),
+       (102, 'Tarde Completa', '14:00:00', '22:00:00');
+
+-- Carlos (Admin)
+INSERT INTO usuario (id, documento_identidad, nombre,  direccion, fotoPerfil_url, tipo_sangre)
+VALUES (1, '1020304050', 'Jose Gabriel', 'Calle 45 # 12-34, Bucaramanga', 'https://miweb.com', 'o+');
+INSERT INTO credenciales (usuario_id, usuario, clave, rol_id, activo)
+VALUES (1, 'adminJose', 'admin123', 1, true);
+
+-- Ana (Contadora)
+INSERT INTO usuario (id, documento_identidad, nombre,  direccion, fotoPerfil_url, tipo_sangre)
+VALUES (2, '9876543210', 'vale López', 'Carrera 27 # 50-10, Bucaramanga', 'https://miweb.com', 'a+');
+INSERT INTO credenciales (usuario_id, usuario, clave, rol_id, activo)
+VALUES (2, 'contador_vale', 'conta123', 3, true);
+
+--  (Empleado de prueba)
+INSERT INTO usuario (id, documento_identidad, nombre,  direccion, fotoPerfil_url, tipo_sangre)
+VALUES (3, '1098741376', 'Michael Benavides', 'Carrera 37 # 50-10, Bucaramanga', 'https://miweb.com', 'o+');
+INSERT INTO contrato (usuario_id, tipo_contrato, cargo, salario_base, jornada_id)
+VALUES (3, 'Término Fijo','Operario Backend', 1500000.00, 101);
+
+INSERT INTO usuario (id, documento_identidad, nombre, direccion, fotoPerfil_url, tipo_sangre)
+VALUES (4, '123456789', 'alejandro diaz', 'Carrera 20  # 20-20, Bucaramanga', 'https://miweb.com', 'o+');
+INSERT INTO contrato (usuario_id, tipo_contrato, cargo, salario_base, jornada_id)
+VALUES (4, 'Término Fijo','Operario', 1500000.00, 101);
+
+INSERT INTO usuario (id, documento_identidad, nombre, direccion, fotoPerfil_url, tipo_sangre)
+VALUES (5, '987654321', 'Homero', 'avenida siempre viva# 20-20, Springfield', 'https://miweb.com', 'o+');
+INSERT INTO contrato (usuario_id, tipo_contrato, cargo, salario_base, jornada_id)
+VALUES (5, 'Término Fijo','Operario frontend',   1500000.00, 102);
+
+INSERT INTO usuario (id, documento_identidad, nombre, direccion, fotoPerfil_url, tipo_sangre)
+VALUES (6, '654321987', 'Rene Huiguita', 'Carrera 22  # 22-22, Bucaramanga', 'https://miweb.com', 'o+');
+INSERT INTO contrato (usuario_id, tipo_contrato, cargo, salario_base, jornada_id)
+VALUES (6, 'Término Fijo', 'Operario base de datos', 1500000.00, 102);
+
+INSERT INTO usuario (id, documento_identidad, nombre, direccion, fotoPerfil_url,  tipo_sangre)
+VALUES (7, '987455856', 'peter perez', 'Carrera 22  # 20-20, Bucaramanga', 'https://miweb.com', 'o+');
+INSERT INTO contrato (usuario_id, tipo_contrato, cargo, salario_base, jornada_id)
+VALUES (7, 'Término Fijo', 'recursos humanos', 1500000.00, 101);
+
+
+-- asistencias
+
